@@ -56,51 +56,35 @@ def to_ip(addr):    #Function created inorder to handle IP address as well as Ho
     else:
         return socket.gethostbyname(addr)
 
-class Response(object):  #for the reponses recieved
-	def __init__(self):
-		self.max_rtt = None
-		self.min_rtt = None
-		self.avg_rtt = None
-		self.packet_lost = None
-		self.ret_code = None
-		self.ttl = None
-		self.output = []
-
-		self.packet_size = None
-		self.timer = None
-		self.destination = None
-		self.destination_ip = None
-
 class Ping(object):
     def __init__(self,destinantion,packet_size=55,timer=1000,own_id=None,source_address=False):
         self.destination = destinantion   #Destinantion address where the ping is supposed to go
         self.timer = timer                 #timer till which the device will wait for the response
         
-        if source_address != False:
-            self.sourceaddress = socket.gethostbyname(source_address)
+        # hostname = socket.gethostname()
+        self.source_address = "127.0.0.1"
                
         if own_id == None:
             self.own_id = os.getpid()     #To get the currnt process id so that the receiver knows the packet number
         else:
             self.own_id = own_id
 
-        
+        self.ttl = None
+        self.dest_ip = to_ip(self.destination)
+
         self.min_time = 9999999  #MIN RTT
         self.max_time = 0.0      #MAX RTT
         self.total_time = 0.0    #RTT
-        self.send_count = 0      #Count of packets sent
         self.sent_packets = 0 #Number of packets sent
-        self.recieved_packets = 0 #Number of packets received back
+        self.received_packets = 0 #Number of packets received back
         self.packet_size = packet_size
-        self.dest_ip = to_ip(self.destination)
         self.seq_number = 0             # to keep track of multiple ping packets sent
-        self.own_ip = socket.gethostbyname(socket.gethostname())
 
         self.start()
 
 
 
-    def start(self,):
+    def start(self):
         print("Ping request sent to %s : %d data bits"%(self.dest_ip,self.packet_size))
     
     def success(self, delay, ip, packet_size, ip_header, icmp_header):
@@ -115,8 +99,8 @@ class Ping(object):
         print(f"Packet Lost: {lost_packets}")
 
         lost_rate = (float(lost_packets)/self.sent_packets) * 100
-        print(f"{self.sent_packets} packets transmitted , {self.recieved_packets} packets received , {self.ttl} = ttl , {lost_rate}% packets lost ")
-        print(f"round-trip min/avg/max/stddev = {self.min_time}/{self.total_time/self.recieved_packets}/{self.max_time}/{math.sqrt(self.total_time/2)} ms")
+        print(f"{self.sent_packets} packets transmitted , {self.received_packets} packets received , {self.ttl} = ttl , {lost_rate}% packets lost ")
+        print(f"round-trip min/avg/max/stddev = {self.min_time}/{self.total_time/self.received_packets}/{self.max_time}/{math.sqrt(self.total_time/2)} ms")
 
     def unpack_header(self,names,struct_format,data):   #this is to convert the recieved header into easy to read and extract infofmation form 
         unpacked_data = struct.unpack(struct_format,data)
@@ -133,17 +117,26 @@ class Ping(object):
 
     def do(self):   
         #Function which send and receives packets and extracts the neccessary details until time runs out
-        icmp_socket = socket.socket(socket.AF_INET,socket.SOCK_RAW,socket.getprotobyname("icmp"))  #Here we use SOCK_RAW-as we are not going to establish a connection and we also need to access the inner protocols (ICMP) which are not accessible by SOCK_DGRAM/SOCK_STREAM used for UDP and TCP Protocols
+        try:
+            icmp_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP) #Here we use SOCK_RAW-as we need to access the inner protocols (ICMP) which are not accessible by SOCK_DGRAM/SOCK_STREAM used for UDP and TCP Protocols
+            icmp_socket.setblocking(0) 
+        except socket.error as e:
+            print("Error creating ICMP socket:", e)
+        
+        icmp_socket.bind((self.source_address,1))  #Here we bind back to ourself since raw sockets dont include source address so we won't be able to receive back the icmp response
+
         send_time = self.send_one_ping(icmp_socket)
+        print("Send Time:",send_time)
         if send_time == None:
             return
-        self.send_count += 1
+        self.sent_packets += 1
 
         receive_time, packet_size, ip, ip_header, icmp_header = self.receive_one_ping(icmp_socket) 
         icmp_socket.close()
 
+        print("Receive Time:",receive_time," Pckt size: ",packet_size)
         if receive_time:            
-                self.recieved_packets += 1   #inclrease count of recieved packets by one
+                self.received_packets += 1   #inclrease count of recieved packets by one
                 self.ttl = ip_header["ttl"]    #show the ttl sotred in the IP header
                 delay = (receive_time - send_time) * 1000.0    #delay is the total time taken
                 self.total_time += delay
@@ -188,28 +181,34 @@ class Ping(object):
         #Processes behind each icmp echo request received
         #Timer in ms
         timer = self.timer/1000.0
+        print("Entered in")
 
         while True:
             select_start = time.time() #start the select module for accepting the incoming echo replies
             inputready, outputready,exceptready = select.select([icmp_socket],[],[],timer)
+            print("HEre")
             select_duration = time.time() - select_start
 
             receive_time = time.time()  #time after running select command gives the time at which reply is received
 
-            if inputready == None:
+            if not inputready:
+                if timer <= 0:
+                    return None, 0, 0, 0, 0
                 return None,0,0,0,0
             
+            print("HEre")
             packet_data,address = icmp_socket.recvfrom(2048) #Max buffer size=2048 of received data
+            print("Here")
             print(f"Packet data: {packet_data} \n")
             
             icmp_header = self.unpack_header(names = ["type","code","checksum","packet_id","seq_number"],
-                                             format="!BBHHH",data =packet_data[20:28])    #20-28 refers to the first 8 bytes which include type,code,checksum,packet_id and sequence_number
+                                                         format="!BBHHH",data =packet_data[20:28])    #20-28 refers to the first 8 bytes which include type,code,checksum,packet_id and sequence_number
             
             if icmp_header["packet_id"] == self.own_id:  #Its our sent packet
                 ip_header = self.unpack_header(names=["version", "type", "length",
 						                              "id", "flags", "ttl", "protocol",  #Basic IP header file format
 						                              "checksum", "src_ip", "dest_ip"],
-                                                      struct_format="!BBHHHBBHII"),
+                                                      struct_format="!BBHHHBBHII")
                 data = packet_data[:20]                                                  #First 20 bytes are IP header information
                 packet_size = len(packet_data) - 28   #Total size - IP_header size(20) - ICMP_header(8) = Actual Payload 
                 print("Src_ip: ", {ip_header["src_ip"]})
@@ -221,5 +220,5 @@ class Ping(object):
             if(timer <=0):
                 return None,0,0,0,0
 
-p1 = Ping(IP,packet_size=55,timer=1000)
+p1 = Ping(destinantion=IP)
 p1.send_ping(4)
