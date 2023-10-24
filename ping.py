@@ -161,7 +161,7 @@ class Ping(object):
         checksum = 0
 
         # Header is type (8), code (8), checksum (16), id (16), sequence (16)
-        header = struct.pack("!BBHHH",ICMP_ECHO,0,checksum,self.own_id,self.seq_number)
+        header = struct.pack("!BBIII",ICMP_ECHO,0,checksum,self.own_id,self.seq_number)
 
         padBytes = []
         startVal = 0x42
@@ -171,7 +171,7 @@ class Ping(object):
 
         checksum = cal_checksum(header + data)  #calculate the actual checksum
 
-        header = struct.pack("!BBHHH",ICMP_ECHO,0,checksum,self.own_id,self.seq_number) #update it with the actual checksum
+        header = struct.pack("!BBIII",ICMP_ECHO,0,checksum,self.own_id,self.seq_number) #update it with the actual checksum
 
         packet = header + data
         send_time = time.time()
@@ -204,7 +204,7 @@ class Ping(object):
             # print(f"Packet data: {packet_data} \n")
             
             icmp_header = self.unpack_header(names = ["type","code","checksum","packet_id","seq_number"],
-                                                         struct_format="!BBHHH",data =packet_data[20:28])    #20-28 refers to the first 8 bytes which include type,code,checksum,packet_id and sequence_number
+                                                         struct_format="!BBIII",data =packet_data[20:28])    #20-28 refers to the first 8 bytes which include type,code,checksum,packet_id and sequence_number
             
             if icmp_header["packet_id"] == self.own_id:  #Its our sent packet
                 ip_header = self.unpack_header(names=["version", "type", "length",
