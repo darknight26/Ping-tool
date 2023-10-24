@@ -1,4 +1,4 @@
-# WEC-REC_networking
+![Screenshot from 2023-10-24 23-45-06](https://github.com/darknight26/WEC-REC_networking/assets/85021170/6abead1d-6024-44cc-81e6-10056af9b6eb)# WEC-REC_networking
 ICMP is a protocol that is typically used to talk about network problems, like, whether data is getting to 
 the destination in time or there is any packet loss in between and others. It can also be used for a DDoS attack
 (Distributed Denial of Service) where the host is swarmed with a lot of packets to traffic jam the host network 
@@ -128,3 +128,8 @@ Even the IP header contents are extracted.
 
 Finally receive_time(time taken to receive the packet),packet_size(received packet size),IP,
 IP_header(header contents of IP) and ICMP_header are returned back
+
+#Working
+![Screenshot from 2023-10-24 23-45-06](https://github.com/darknight26/WEC-REC_networking/assets/85021170/66689d4d-e2fa-477e-be53-867c3f9c2175)
+
+
