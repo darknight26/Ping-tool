@@ -11,7 +11,8 @@ ICMP_ECHO = 8 # Echo request (per RFC792)
 ICMP_MAX_RECV = 2048 # Max size of incoming buffer
 
 IP = input("Enter the IP address to be pinged \n")
-
+cnt = input("Enter the number of packets to be sent \n")
+cnt = int(cnt)
 
 def cal_checksum(data):
      sum = 0
@@ -40,10 +41,12 @@ def cal_checksum(data):
 def to_ip(addr):    #Function created inorder to handle IP address as well as Hostnames
     ip = True
     if ip:
+        addr = socket.gethostbyname(addr)
         parts = addr.split(".")
         if not len(parts) == 4:
             ip = False
         for part in parts:
+            number = 0
             try:
                 number = int(part)
             except ValueError:
@@ -100,7 +103,10 @@ class Ping(object):
 
         lost_rate = (float(lost_packets)/self.sent_packets) * 100
         print(f"{self.sent_packets} packets transmitted , {self.received_packets} packets received , {self.ttl} = ttl , {lost_rate}% packets lost ")
-        print(f"round-trip min/avg/max/stddev = {self.min_time}/{self.total_time/self.received_packets}/{self.max_time}/{math.sqrt(self.total_time/2)} ms")
+        if self.received_packets != 0:
+            print(f"round-trip min/avg/max/stddev = {self.min_time}/{self.total_time/self.received_packets}/{self.max_time}/{math.sqrt(self.total_time/2)} ms")
+        else:
+            print(f"round-trip min/avg/max/stddev = 0/0/0/0 ms")
 
     def unpack_header(self,names,struct_format,data):   #this is to convert the recieved header into easy to read and extract infofmation form 
         unpacked_data = struct.unpack(struct_format,data)
@@ -119,14 +125,13 @@ class Ping(object):
         #Function which send and receives packets and extracts the neccessary details until time runs out
         try:
             icmp_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP) #Here we use SOCK_RAW-as we need to access the inner protocols (ICMP) which are not accessible by SOCK_DGRAM/SOCK_STREAM used for UDP and TCP Protocols
-            icmp_socket.setblocking(0) 
+            # icmp_socket.setblocking(0)
+            # icmp_socket.bind((self.source_address,1))  #Here we bind back to ourself since raw sockets dont include source address so we won't be able to receive back the icmp response 
         except socket.error as e:
             print("Error creating ICMP socket:", e)
-        
-        icmp_socket.bind((self.source_address,1))  #Here we bind back to ourself since raw sockets dont include source address so we won't be able to receive back the icmp response
 
         send_time = self.send_one_ping(icmp_socket)
-        print("Send Time:",send_time)
+        # print("Send Time:",send_time)
         if send_time == None:
             return
         self.sent_packets += 1
@@ -155,6 +160,7 @@ class Ping(object):
 
         checksum = 0
 
+        # Header is type (8), code (8), checksum (16), id (16), sequence (16)
         header = struct.pack("!BBHHH",ICMP_ECHO,0,checksum,self.own_id,self.seq_number)
 
         padBytes = []
@@ -171,7 +177,7 @@ class Ping(object):
         send_time = time.time()
 
         try:
-            icmp_socket.sendto(packet,(self.dest_ip,1)) #PORT  number is not required for icmp packets
+            icmp_socket.sendto(packet,(self.dest_ip,80)) #PORT number is not required for icmp packets
         except socket.error as e:
             print(f"Socket error: {e}")      
 
@@ -181,37 +187,34 @@ class Ping(object):
         #Processes behind each icmp echo request received
         #Timer in ms
         timer = self.timer/1000.0
-        print("Entered in")
 
         while True:
             select_start = time.time() #start the select module for accepting the incoming echo replies
             inputready, outputready,exceptready = select.select([icmp_socket],[],[],timer)
-            print("HEre")
             select_duration = time.time() - select_start
 
-            receive_time = time.time()  #time after running select command gives the time at which reply is received
+            receive_time = time.time()  #time at which reply is received
 
             if not inputready:
                 if timer <= 0:
                     return None, 0, 0, 0, 0
                 return None,0,0,0,0
             
-            print("HEre")
             packet_data,address = icmp_socket.recvfrom(2048) #Max buffer size=2048 of received data
-            print("Here")
-            print(f"Packet data: {packet_data} \n")
+            # print(f"Packet data: {packet_data} \n")
             
             icmp_header = self.unpack_header(names = ["type","code","checksum","packet_id","seq_number"],
-                                                         format="!BBHHH",data =packet_data[20:28])    #20-28 refers to the first 8 bytes which include type,code,checksum,packet_id and sequence_number
+                                                         struct_format="!BBHHH",data =packet_data[20:28])    #20-28 refers to the first 8 bytes which include type,code,checksum,packet_id and sequence_number
             
             if icmp_header["packet_id"] == self.own_id:  #Its our sent packet
                 ip_header = self.unpack_header(names=["version", "type", "length",
 						                              "id", "flags", "ttl", "protocol",  #Basic IP header file format
 						                              "checksum", "src_ip", "dest_ip"],
-                                                      struct_format="!BBHHHBBHII")
-                data = packet_data[:20]                                                  #First 20 bytes are IP header information
+                                                      struct_format="!BBHHHBBHII", 
+                data = packet_data[:20])                                                  #First 20 bytes are IP header information
+                
                 packet_size = len(packet_data) - 28   #Total size - IP_header size(20) - ICMP_header(8) = Actual Payload 
-                print("Src_ip: ", {ip_header["src_ip"]})
+                # print("Src_ip: ", {ip_header["src_ip"]})
                 ip = socket.inet_ntoa(struct.pack("!I", ip_header["src_ip"]))               #To convert to readable ip address format, src_ip has it 
                 
                 return receive_time, packet_size, ip, ip_header, icmp_header
@@ -221,4 +224,4 @@ class Ping(object):
                 return None,0,0,0,0
 
 p1 = Ping(destinantion=IP)
-p1.send_ping(4)
+p1.send_ping(cnt)
