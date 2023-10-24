@@ -10,7 +10,7 @@ ICMP_ECHOREPLY = 0 # Echo reply (per RFC792)
 ICMP_ECHO = 8 # Echo request (per RFC792)
 ICMP_MAX_RECV = 2048 # Max size of incoming buffer
 
-IP = input("Enter the IP address to be pinged \n")
+IP = input("Enter the IP address or the Domain name to be pinged \n")
 cnt = input("Enter the number of packets to be sent \n")
 cnt = int(cnt)
 
