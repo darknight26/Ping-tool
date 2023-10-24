@@ -161,7 +161,7 @@ class Ping(object):
         checksum = 0
 
         # Header is type (8), code (8), checksum (16), id (16), sequence (16)
-        header = struct.pack("!BBIII",ICMP_ECHO,0,checksum,self.own_id,self.seq_number)
+        header = struct.pack("!BBHH",ICMP_ECHO,0,checksum,self.seq_number)
 
         padBytes = []
         startVal = 0x42
@@ -171,7 +171,7 @@ class Ping(object):
 
         checksum = cal_checksum(header + data)  #calculate the actual checksum
 
-        header = struct.pack("!BBIII",ICMP_ECHO,0,checksum,self.own_id,self.seq_number) #update it with the actual checksum
+        header = struct.pack("!BBHH",ICMP_ECHO,0,checksum,self.seq_number) #update it with the actual checksum
 
         packet = header + data
         send_time = time.time()
@@ -203,25 +203,19 @@ class Ping(object):
             packet_data,address = icmp_socket.recvfrom(2048) #Max buffer size=2048 of received data
             # print(f"Packet data: {packet_data} \n")
             
-            icmp_header = self.unpack_header(names = ["type","code","checksum","packet_id","seq_number"],
-                                                         struct_format="!BBIII",data =packet_data[20:28])    #20-28 refers to the first 8 bytes which include type,code,checksum,packet_id and sequence_number
-            
-            if icmp_header["packet_id"] == self.own_id:  #Its our sent packet
-                ip_header = self.unpack_header(names=["version", "type", "length",
+            icmp_header = self.unpack_header(names = ["type","code","checksum","seq_number"],
+                                                         struct_format="!BBHH",data =packet_data[20:26])    #20-28 refers to the first 8 bytes which include type,code,checksum,packet_id and sequence_number
+            ip_header = self.unpack_header(names=["version", "type", "length",
 						                              "id", "flags", "ttl", "protocol",  #Basic IP header file format
 						                              "checksum", "src_ip", "dest_ip"],
                                                       struct_format="!BBHHHBBHII", 
                 data = packet_data[:20])                                                  #First 20 bytes are IP header information
                 
-                packet_size = len(packet_data) - 28   #Total size - IP_header size(20) - ICMP_header(8) = Actual Payload 
+            packet_size = len(packet_data) - 28   #Total size - IP_header size(20) - ICMP_header(8) = Actual Payload 
                 # print("Src_ip: ", {ip_header["src_ip"]})
-                ip = socket.inet_ntoa(struct.pack("!I", ip_header["src_ip"]))               #To convert to readable ip address format, src_ip has it 
+            ip = socket.inet_ntoa(struct.pack("!I", ip_header["src_ip"]))               #To convert to readable ip address format, src_ip has it 
                 
-                return receive_time, packet_size, ip, ip_header, icmp_header
-            
-            timer = timer - select_duration
-            if(timer <=0):
-                return None,0,0,0,0
+            return receive_time, packet_size, ip, ip_header, icmp_header
 
 p1 = Ping(destinantion=IP)
 p1.send_ping(cnt)
