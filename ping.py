@@ -167,7 +167,7 @@ class Ping(object):
         startVal = 0x42
         for i in range(startVal, startVal + (self.packet_size)):
                padBytes += [(i & 0xff)]  # And to keep only the last 8 bits and not beyond
-               data = bytes(padBytes)
+        data = bytes(padBytes)
 
         checksum = cal_checksum(header + data)  #calculate the actual checksum
 
