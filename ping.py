@@ -20,7 +20,7 @@ def cal_checksum(data):
     # Iterate through 16-bit segments
      for i in range(0, len(data), 2):
 
-        if i + 1 < len(data):     #Since we check teo numbers at once hence the i+1
+        if i + 1 < len(data):     #Since we check two numbers at once hence the i+1
             # Combine two bytes into a 16-bit value
             segment = (data[i] << 8) + data[i + 1]            #Shift by 8 bits and take the first pair of numbers as a segments 
             sum += segment                                 #keep incrementing the sum
@@ -28,7 +28,7 @@ def cal_checksum(data):
             sum += data[i]                    # If there's a leftover byte                    
             
 
-    # Shift 32-bit sum to 16 bits
+    # Shift 32-bit sum to 16-bit
      while (sum >> 16):
         sum = (sum & 0xffff) + (sum >> 16)
 
@@ -60,7 +60,7 @@ def to_ip(addr):    #Function created inorder to handle IP address as well as Ho
         return socket.gethostbyname(addr)
 
 class Ping(object):
-    def __init__(self,destinantion,packet_size=55,timer=1000,own_id=None,source_address=False):
+    def __init__(self,destinantion,packet_size=55,timer=50000,own_id=None,source_address=False):
         self.destination = destinantion   #Destinantion address where the ping is supposed to go
         self.timer = timer                 #timer till which the device will wait for the response
         
