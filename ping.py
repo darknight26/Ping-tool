@@ -139,7 +139,7 @@ class Ping(object):
         receive_time, packet_size, ip, ip_header, icmp_header = self.receive_one_ping(icmp_socket) 
         icmp_socket.close()
 
-        print("Receive Time:",receive_time," Pckt size: ",packet_size)
+        # print("Receive Time:",receive_time," Pckt size: ",packet_size)
         if receive_time:            
                 self.received_packets += 1   #inclrease count of recieved packets by one
                 self.ttl = ip_header["ttl"]    #show the ttl sotred in the IP header
