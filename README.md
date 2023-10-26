@@ -132,4 +132,7 @@ IP_header(header contents of IP) and ICMP_header are returned back
 #Working
 ![Screenshot from 2023-10-24 23-45-06](https://github.com/darknight26/WEC-REC_networking/assets/85021170/66689d4d-e2fa-477e-be53-867c3f9c2175)
 
+![image](https://github.com/darknight26/WEC-REC_networking/assets/85021170/48ee83ad-c69f-4c28-8537-7d693d84bf55)
+
+
 
